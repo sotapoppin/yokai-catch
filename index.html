@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-visual">
+<title>Yo Kai Catch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sky-top: #232760; --sky-mid: #6a4a8c; --sky-low: #e07a8a;
+    --brick: #7a3328; --brick-dark: #4e1f19; --window: #ffd77a;
+    --box-bg: #fff8e6; --box-ink: #1e2350; --box-frame: #1e2350; --box-inner: #8fb8ff;
+    --plate-bg: #f5b841; --plate-ink: #1e2350;
+    --choco: #5e3320; --choco-dark: #3e2014; --foil: #f5b841; --foil-dark: #d18e1c;
+    --wrong: #c0392b;
+    --team-komasan: #a8dcff; --team-whisper: #ddd5ff; --team-keita: #ffb766;
+    --page-bg: #14163a; --page-ink: #fff8e6;
+    color-scheme: light;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --box-bg: #1c2048; --box-ink: #fff3d6; --box-frame: #0b0d26; --box-inner: #5d7fd1;
+      --wrong: #ff8a7a; --page-bg: #0b0d26; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --box-bg: #1c2048; --box-ink: #fff3d6; --box-frame: #0b0d26; --box-inner: #5d7fd1;
+    --wrong: #ff8a7a; --page-bg: #0b0d26; color-scheme: dark;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0; min-height: 100%;
+    background: var(--page-bg); color: var(--page-ink);
+    font-family: "DotGothic16", "Hiragino Kaku Gothic ProN", "Yu Gothic", system-ui, sans-serif;
+    display: flex; -webkit-tap-highlight-color: transparent; overflow-x: hidden;
+  }
+  .screen {
+    position: relative; margin: auto; flex: none; container-type: size;
+    width: min(100vw, calc(100vh * 0.75)); aspect-ratio: 3 / 4;
+    overflow: hidden; cursor: pointer;
+    background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 48%, var(--sky-low) 78%);
+    user-select: none; -webkit-user-select: none;
+  }
+
+  /* Scenery */
+  .stars { position: absolute; inset: 0 0 45% 0; }
+  .stars i { position: absolute; width: 3px; height: 3px; background: #fff; opacity: .8; animation: twinkle 3s steps(2) infinite; }
+  @keyframes twinkle { 50% { opacity: .2; } }
+  .skyline { position: absolute; left: 0; right: 0; bottom: 30%; height: 28%; }
+  .skyline svg { width: 100%; height: 100%; display: block; }
+  .ground { position: absolute; left: 0; right: 0; bottom: 0; height: 31%;
+    background: repeating-linear-gradient(90deg, transparent 0 46px, rgba(0,0,0,.08) 46px 48px), linear-gradient(180deg, #3f6b4a 0%, #2e5238 100%); }
+  .path { position: absolute; left: 50%; bottom: 0; width: 40%; height: 31%; transform: translateX(-50%);
+    background: #b89a7a; clip-path: polygon(42% 0, 58% 0, 100% 100%, 0 100%); opacity: .85; }
+
+  /* Character */
+  .actor { position: absolute; left: 50%; bottom: 33%; width: 38%; aspect-ratio: 1;
+    transform: translateX(-50%); pointer-events: none; transition: opacity .5s steps(4); }
+  .actor.hidden, .screen.anagramming .actor, .screen.congrats .actor { opacity: 0; }
+  .actor .bob { width: 100%; height: 100%; animation: bob 1.6s ease-in-out infinite; }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-9%); } }
+  .actor .shadow { position: absolute; left: 50%; bottom: -6%; width: 60%; height: 10%; transform: translateX(-50%);
+    background: rgba(0,0,0,.35); border-radius: 50%; animation: shadow 1.6s ease-in-out infinite; }
+  @keyframes shadow { 0%,100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(.75); opacity: .6; } }
+  .actor img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; image-rendering: crisp-edges; }
+  #actor { transition: opacity .5s steps(4), left .4s steps(4); }
+  .screen.duo #actor { left: 30%; }
+  .actor.ggg { left: 72%; width: 30%; bottom: 34%; }
+  .actor.ggg .bob, .actor.ggg .shadow { animation-delay: -.8s; }
+  .actor.shake .bob { animation: shake .35s steps(3) 2, bob 1.6s ease-in-out .7s infinite; }
+  @keyframes shake { 0%,100% { transform: translateX(0); } 33% { transform: translateX(-6%); } 66% { transform: translateX(6%); } }
+
+  /* Dialogue box */
+  .dialog { position: absolute; left: 3%; right: 3%; bottom: 3%; min-height: 27%; z-index: 4;
+    background: var(--box-bg); color: var(--box-ink);
+    border: 4px solid var(--box-frame); border-radius: 14px;
+    box-shadow: inset 0 0 0 3px var(--box-inner), 0 4px 0 rgba(0,0,0,.35);
+    padding: 7% 5% 4% 5%; font-size: clamp(15px, 3.6cqmin, 24px); line-height: 1.55; }
+  .nameplate { position: absolute; top: 0; left: 6%; transform: translateY(-62%);
+    background: var(--plate-bg); color: var(--plate-ink);
+    border: 4px solid var(--box-frame); border-radius: 10px;
+    padding: .15em .9em; font-size: .85em; box-shadow: 0 3px 0 rgba(0,0,0,.3); }
+  .nameplate.empty { display: none; }
+  .nameplate.puzzle { background: var(--box-inner); }
+  .nameplate.ggg { background: #8ee6a8; }
+  .text { margin: 0; min-height: 3.1em; white-space: pre-wrap; }
+  .next { position: absolute; right: 4.5%; bottom: 5%; width: 0; height: 0;
+    border-left: .45em solid transparent; border-right: .45em solid transparent;
+    border-top: .55em solid var(--plate-bg); filter: drop-shadow(0 2px 0 var(--box-frame));
+    animation: nudge .8s steps(2) infinite; opacity: 0; }
+  .next.on { opacity: 1; }
+  @keyframes nudge { 50% { transform: translateY(30%); } }
+
+  .answer { display: none; gap: .5em; margin-top: .4em; cursor: default; }
+  .answer.on { display: flex; }
+  .answer input { flex: 1; min-width: 0; font: inherit; font-size: 1em;
+    background: var(--box-bg); color: var(--box-ink);
+    border: 3px solid var(--box-frame); border-radius: 8px; padding: .25em .5em;
+    user-select: text; -webkit-user-select: text; }
+  .btn { font: inherit; cursor: pointer; background: var(--plate-bg); color: var(--plate-ink);
+    border: 3px solid var(--box-frame); border-radius: 8px; padding: .2em .9em; box-shadow: 0 3px 0 var(--box-frame); }
+  .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--box-frame); }
+  .answer .btn { font-size: .95em; }
+  .feedback { color: var(--wrong); font-size: .85em; min-height: 1.3em; margin: .25em 0 0; }
+  .answer input.bad { animation: jiggle .3s steps(3); }
+  @keyframes jiggle { 33% { transform: translateX(-4px); } 66% { transform: translateX(4px); } }
+
+  /* Chocobars */
+  .bar { --s: 1; position: relative; width: calc(2.4em * var(--s)); height: calc(3.6em * var(--s));
+    border: calc(3px * var(--s)) solid var(--box-frame); border-radius: calc(6px * var(--s));
+    overflow: hidden; flex: none;
+    background:
+      linear-gradient(90deg, transparent 47%, var(--choco-dark) 47% 53%, transparent 53%),
+      linear-gradient(180deg, transparent 46%, var(--choco-dark) 46% 54%, transparent 54%),
+      var(--choco);
+    background-size: 100% 100%, 100% 40%, 100% 100%; background-repeat: no-repeat; }
+  .bar .wrap { position: absolute; left: 0; right: 0; bottom: 0; height: 62%;
+    background: linear-gradient(180deg, var(--foil) 0%, var(--foil-dark) 100%);
+    border-top: calc(3px * var(--s)) solid var(--box-frame);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--plate-ink); font-size: calc(1.5em * var(--s)); line-height: 1; }
+  .bar .wrap::before { content: ""; position: absolute; left: 0; right: 0; top: 12%; height: 8%; background: rgba(255,255,255,.45); }
+  .tray { position: absolute; top: 2%; left: 2%; display: flex; gap: 4px; flex-wrap: wrap; align-items: center; max-width: 72%;
+    font-size: clamp(7px, 1.6cqmin, 11px); pointer-events: none; z-index: 2; }
+  .chip { font-size: 1.3em; padding: .15em .6em; border-radius: 999px; border: 2px solid var(--box-frame);
+    color: var(--plate-ink); margin-right: 2px; }
+  .reward { position: absolute; left: 0; right: 0; top: 10%; display: none; justify-content: center; gap: 4%;
+    font-size: clamp(14px, 4cqmin, 26px); pointer-events: none; }
+  .reward.on { display: flex; }
+  .reward .bar, .pop-in .bar { animation: pop .5s steps(5) both; }
+  @keyframes pop { 0% { transform: translateY(40%) scale(.3) rotate(-10deg); opacity: 0; } 70% { transform: scale(1.12) rotate(4deg); } 100% { transform: none; } }
+  .word-gap { width: 1em; flex: none; }
+
+  /* Overlay screens */
+  .overlay { position: absolute; inset: 0; display: none; z-index: 5;
+    flex-direction: column; align-items: center; justify-content: flex-start;
+    padding: 12% 6% 0; gap: 4%; cursor: default;
+    background: linear-gradient(180deg, rgba(20,22,58,.72) 0%, rgba(20,22,58,.15) 70%); }
+  .screen.titling #title, .screen.teaming #team, .screen.congrats #congrats { display: flex; }
+  .screen.titling .dialog, .screen.titling .tray, .screen.teaming .dialog, .screen.teaming .tray,
+  .screen.congrats .dialog, .screen.congrats .tray { display: none; }
+  .big-title { margin: 0; text-align: center; font-weight: normal;
+    font-size: clamp(44px, 13cqmin, 110px); line-height: .95; letter-spacing: .02em; color: var(--plate-bg);
+    text-shadow:
+      4px 0 0 var(--box-frame), -4px 0 0 var(--box-frame), 0 4px 0 var(--box-frame), 0 -4px 0 var(--box-frame),
+      4px 4px 0 var(--box-frame), -4px 4px 0 var(--box-frame), 4px -4px 0 var(--box-frame), -4px -4px 0 var(--box-frame),
+      0 10px 0 var(--brick);
+    animation: drop .6s steps(6) both; }
+  .big-title span { display: block; }
+  .big-title span + span { color: #fff8e6; transform: rotate(-4deg); }
+  .big-title.sm { font-size: clamp(30px, 9cqmin, 76px); }
+  @keyframes drop { 0% { transform: translateY(-120%); opacity: 0; } 70% { transform: translateY(6%); } 100% { transform: none; } }
+  .big-btn { font-size: clamp(18px, 4.6cqmin, 32px); border-width: 4px; border-radius: 12px; padding: .45em 1.3em; box-shadow: 0 5px 0 var(--box-frame); }
+  .big-btn:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--box-frame); }
+  #title .big-btn { margin-top: 2%; animation: fadein .3s steps(3) .7s both, pulse 1.4s steps(2) 1.2s infinite; }
+  @keyframes fadein { from { opacity: 0; } }
+  @keyframes pulse { 50% { transform: scale(1.05); } }
+  .team-list { display: flex; flex-direction: column; gap: .7em; width: min(86%, 15em); font-size: clamp(16px, 4.4cqmin, 30px); }
+  .team-list .btn { width: 100%; font-size: 1em; padding: .5em; animation: fadein .3s steps(3) both; }
+  .team-list .btn:nth-child(2) { animation-delay: .1s; } .team-list .btn:nth-child(3) { animation-delay: .2s; }
+  .ov-text { margin: 0; text-align: center; color: #fff8e6; font-size: clamp(15px, 4cqmin, 28px); line-height: 1.4;
+    text-shadow: 2px 2px 0 var(--box-frame); }
+  .final-word { display: flex; justify-content: center; gap: .25em; font-size: clamp(10px, 3.2cqmin, 20px); }
+  #congrats { background: linear-gradient(180deg, rgba(20,22,58,.85) 0%, rgba(20,22,58,.55) 100%); justify-content: center; padding-top: 0; }
+  .confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  .confetti i { position: absolute; top: -5%; width: 1.6%; aspect-ratio: 1; animation: fall linear infinite; }
+  @keyframes fall { to { transform: translateY(120cqh) rotate(540deg); } }
+
+  .freed-btn { position: absolute; left: 50%; top: 30%; transform: translate(-50%, -50%); display: none; z-index: 4; }
+  .freed-btn:active { transform: translate(-50%, calc(-50% + 4px)); }
+  .screen.freeing .freed-btn { display: block; animation: fadein .3s steps(3) both; }
+
+  /* Anagram */
+  .anagram { position: absolute; left: 3%; right: 3%; top: 9%; bottom: 33%; display: none; z-index: 3;
+    flex-direction: column; align-items: center; justify-content: center; gap: 1.3em;
+    font-size: clamp(10px, 3.2cqmin, 21px); cursor: default; }
+  .screen.anagramming .anagram { display: flex; }
+  .slots { display: flex; gap: .25em; justify-content: center; }
+  .slot { width: calc(2.4em + 6px); height: calc(3.6em + 6px); border: 3px dashed rgba(255,248,230,.8);
+    border-radius: 8px; background: rgba(20,22,58,.35); flex: none; }
+  .slots.win .slot { border-style: solid; border-color: var(--plate-bg); }
+  .slots.win .bar { animation: pop .5s steps(5) both; }
+  .pool { display: flex; gap: .35em; flex-wrap: wrap; justify-content: center; align-content: center;
+    min-height: calc(3.6em + 1em); min-width: 70%; padding: .5em; border-radius: 12px;
+    background: rgba(20,22,58,.45); border: 3px solid rgba(255,248,230,.35); }
+  .anagram .bar { cursor: grab; touch-action: none; }
+  .ghost { position: fixed; pointer-events: none; z-index: 100; margin: 0;
+    transform: translate(-50%, -50%) rotate(-6deg) scale(1.12); filter: drop-shadow(0 6px 0 rgba(0,0,0,.35)); }
+
+  /* Tools */
+  .tools { position: absolute; top: 2%; right: 2%; display: flex; gap: 6px; opacity: 0; transition: opacity .2s; z-index: 6; }
+  .screen:hover .tools, .tools:focus-within, .tools:has([data-armed]) { opacity: 1; }
+  .tools button { font: inherit; font-size: 13px; background: rgba(20,22,58,.55); color: #fff8e6;
+    border: 2px solid rgba(255,248,230,.5); border-radius: 8px; padding: 4px 8px; cursor: pointer; }
+  .tools button[data-armed] { background: var(--wrong); border-color: #fff8e6; }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--plate-bg); outline-offset: 2px; }
+
+  /* Standby static */
+  .static { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; display: none; z-index: 7; }
+  .scanlines { position: absolute; inset: 0; pointer-events: none; display: none; z-index: 7;
+    background: repeating-linear-gradient(180deg, rgba(0,0,0,.28) 0 2px, transparent 2px 4px); }
+  .screen.standby .static, .screen.standby .scanlines { display: block; }
+  .screen.standby .dialog, .screen.standby .tray { display: none; }
+
+  .flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 8; }
+  .flash.go { animation: flash .4s steps(3); }
+  @keyframes flash { 30% { opacity: .85; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .actor .bob, .actor .shadow, .stars i, .next, .confetti i { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="screen standby" id="screen" role="button" tabindex="0" aria-label="Tap to continue">
+  <div class="stars" id="stars"></div>
+  <div class="skyline" aria-hidden="true">
+    <svg viewBox="0 0 400 120" preserveAspectRatio="none">
+      <rect x="0" y="50" width="70" height="70" fill="var(--brick-dark)"/>
+      <rect x="62" y="28" width="96" height="92" fill="var(--brick)"/>
+      <polygon points="62,28 110,8 158,28" fill="var(--brick-dark)"/>
+      <rect x="150" y="60" width="60" height="60" fill="var(--brick-dark)"/>
+      <rect x="205" y="18" width="80" height="102" fill="var(--brick)"/>
+      <rect x="280" y="44" width="62" height="76" fill="var(--brick-dark)"/>
+      <rect x="336" y="32" width="64" height="88" fill="var(--brick)"/>
+      <g fill="var(--window)">
+        <rect x="74" y="40" width="10" height="12"/><rect x="94" y="40" width="10" height="12"/><rect x="114" y="40" width="10" height="12"/><rect x="134" y="40" width="10" height="12"/>
+        <rect x="74" y="66" width="10" height="12"/><rect x="114" y="66" width="10" height="12"/><rect x="134" y="66" width="10" height="12" opacity=".4"/>
+        <rect x="216" y="30" width="10" height="12"/><rect x="236" y="30" width="10" height="12" opacity=".4"/><rect x="256" y="30" width="10" height="12"/>
+        <rect x="216" y="56" width="10" height="12" opacity=".4"/><rect x="256" y="56" width="10" height="12"/><rect x="236" y="82" width="10" height="12"/>
+        <rect x="348" y="44" width="10" height="12"/><rect x="368" y="44" width="10" height="12"/><rect x="348" y="70" width="10" height="12" opacity=".4"/>
+        <rect x="12" y="62" width="8" height="10"/><rect x="40" y="62" width="8" height="10" opacity=".4"/>
+        <rect x="292" y="56" width="8" height="10"/><rect x="318" y="56" width="8" height="10"/>
+      </g>
+    </svg>
+  </div>
+  <div class="ground"></div>
+  <div class="path"></div>
+
+  <div class="actor hidden" id="actor" aria-hidden="true">
+    <div class="shadow"></div>
+    <div class="bob"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAFB0lEQVR42q2XTYwURRTHf6+remZ2ZliRrwSMfGo2GDUxLqiR8CEYSBaQmE08qGcjN4N48+SRq0e9GEmMkvhFdglhYWWREIR40INg+IpBQlQ2uDOzM9PT9Tx0z0zP9OwHK5VU0l31Xr2vf733SlSV5BCRjgVVFRYwVBXP87THesd5tlv4WBdDU6EHUSSbzapks9xKnkOe1VRStDapMcCK4Sv8/c0A0ojWx5sHWNGwHs6pxCJj9CqGUn2KBlAZvgLAX49avE+fTNF7vQ5ZduBKau1ECMYYnWv+CjhC+hLCAXZ+8gRhmDZAmpY3Y/bLcKfwf44NMGJAnTCUwMvqBM11iSwZibff7RL+zNcDaKN3CL25XDpi4J2wnz0I67Gtuco1WjTLFTao4SAwhPBhESa/H2jtX3v9NiKi3QCf0QPO3mXyi60xeGC5QC5mnc5mWVe6x93cYjQMeip9R3wCjfbW773FvVyNbHaSjUdfSIG5pwc++3JX6/tx2sIBnqpW6bN51lYrM3ptpbYVu358DcaYGWlTHngf2CdgPcPKMEwxrOvKGzek98UIBW5rO4xHnOCckzkxMISAwuIewgHOi0cZN2cuKKjP+viW756F3CYSDliQhuJj6cdvE/WF/FYNUN9nR62W8sg5sWzwMyQhUWW6haE6MKqKiGg3BlohyIvVUSKr1yCsTXj6pFjEC3l1Bq8AXBDhxcTZNxKAvy7QUNgzVypu3u+1gUUkSOTvANBZXb7Z5RFpA7OmcHseydtbUKHZMTRv2puGOBidtaJDgWSCaADYpRhDayqZjgOqI8dSgupBpYMnBG5mMnghLEo4T3xRlwBLygN/AsodGg1pTegEXj6fTymQy0x18PShKcACyBlFw3bkPRFRztV61POQyDEO6SzPzZzRxVGMaGOe5timSqbLTjdRb/UKrR0nHtvx2KaKlBoUCgV6NCsEQ/tp7H+NYOc+RAQRoZawVFXJ5XIpg4bMIzBRnQGEW3zkwiRYh3MOipZKpYIxpjWbltvQYAODyfWjqqgqS5Ys6aAtlUpta52jgZAJ74NVcttBt5awp1y72QGnMqEqE6qREQ9vxPdXuVBvycHU1R+L9iI0nAvQLX6Hq0Uk8sYCh8Q1QlWluwzLuB+lx2Ym7M8V9WQNXqZCqJHQCRG2xgwfkWOK6qwCK9bn40bQs/kMgoBsZoUK93GU4ew0bFuKOo3ims/n9YdsXrFoGIZ6FqNnQMdAP/A8PW3QQ3Fo5CtVDjRaLh4DPeijv4OOgxrxdLpab+GjOWNv6jgoeNpctwDlclnyYnUcWrX7tMCowt4eYZA32/V9FDgUwB/x/3vq6MsVVLU+ry46lYjG4+Vd0rk1JHBYBDcMbjiC1mERjqhyF4/jwHHgIIBJvzUKnq/js5Xjqcq02HzU+3zuOzSAt/HxTMBuBc9FvcL5WLHpRCJ6WmucEp+34tyP15neL+Pzb5Tk2Y6HVtrdsXQnG4BCoaC1Wo0wDPnu6BsMDsJPl5VNz0X7Fy8pmwfbHr54Sdn0vMfln2FwsMrGjSc54dqAfMkqnovkdLfmtldcyuWyzPS0mmusGvg2EppM68HMryo72z1u3uEfEZYZj2rckBQFrmq7f3gWqAj064O/J3uGIEWUEx2tQzYO+ysGqEc/p41jmYOlankMh2oo9XqdTCbz8BRoIjkMQ4wxHRaKiJZKJYrF4oJe0vNWIImJbgX+zzP+Pyzp5OCwr5Q3AAAAAElFTkSuQmCC" alt=""></div>
+  </div>
+
+  <div class="actor ggg hidden" id="actor2" aria-hidden="true">
+    <div class="shadow"></div>
+    <div class="bob"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAiCAYAAAA+stv/AAAFfUlEQVR42sVYS2sbVxg9MxppplY8o8cgRarjOBpFVsFK0pY0pVDabtplF/kHCbRdGLLxD8gPMJSAKbQL00UXLV11EQrFoEUhYBtMm5TEiWPnZUm2GMmaaaxoonl0MbpXM6ORY696QWh87517zne+h+5n5rsfyzjuWFxqOt6/F+YzZB6Beea4ZzLHIUCACeC40e++RnQiRgkdhwh3XOCDho57d7bQUN1XLl9OI5kTKXB1pYamGgEAfPGegfKls973mRMrsLjUdAjw+noLTTWCtmb69qQkDhnZomspyW/PxbKBykfnsbjUHEuCHQd+41oC9+5sHQne1kysbZh4+tyArll0jeytrkbw0/Jz3LiWGImfsQQIeHWlhr83+VBwXbNw/8ErCto9tNE9tH37yPPT5wZ++XkP168KoSTYceBeYCKtrlnYq/fRPbR9wGTs1fv0HV2zKMG2ZuL2751QJdigz6srNWxuO2hrJnTNQlsz6XNwTMRZTMTZEXV0zYIoRShJokR1pYaF+YyPhC9qDhr6IJJHAUUpEjrnXQsqQtbJWNswkZO3AEh+BYj16+stKiF52QsqShFq9el8FCmJQ1lhUFYYfPk58OnHMapI99Cm7vKSq65GfK7ggtanJIQGndfaskIyyiWXk03IaaCkWAA4rG2YPiW8z7pmYfOvZ1SFyINd21mYz+DPah0vGjb2m33wAjsit2E4MAwHuWwMxek+zp2xkZVtRBj38Kk8g4TM43SqD9Pm0Gw56PdHMy8aY2D0eXzzdR6LS82bLKlkhB2RzMs+6FsASCX8dSUh8yjkeSRkHp9csTAzzY+tsG3NpJgsALzUerSMHjVEKYKLZQMlhUG740BtAXIa+OCKgELeBSQkLpYNX4Z4n70VkwtLrbA54vuS4kqdkIFCERQ4OOS0S7h7aGMizlIFRSmCjGyNEsjIFtraMJ3CwAHg19sxZGQTlVkThaKAnboBAOioBh5tO2ioHA3Kz65YqK5GsVfv+8hVZodBzi3MZ2DsP0ZOdrC5HaGghMTMtCunnAYKRQEAsPPYhNoCUglj6NeOM3AHh0I+jp26MVi38NsfLFWirDAQxCxEfh8L82eGCshpoKwwWNsYSnc6H6Xgagu499BETjaple2OQ0k92u6hoXKDPT1KuAQDosRSYyqzBvIZjRKPPNi1b1bekSC+1YV4ykY0xkE9AGwbyGVjmJu1aJrNTDlIp9xvpSTgDDhMKTySkxwmJAYx9jWyso25CwLen4sjOcnhlQW0VAf/dhl8eKmPuQsuYd3I4tvvW0MF2h3H4x8Om9tusKQSDE2x4Gi2hy4o5MP3FPI8cnIPAIeSwoTfiE5JAnp6MEg4VGZNJGQhHPwfY2Rup26E7i0pDOS0e1boz3F0IjayUJk1R4oNGRt3dR+o11rvmq9IFYfgHdWgmNybik9HNdBsAy9T/gPvPu5BbQ1IpHsugaKAhOySIG7zEiTnjdwJF5eazvWrAnaf7NOMGFdyfSV1EDckToIg3jnvGjs5jVvLHSzMZxiqQDInoqfvQ22BWian/SBuujl0Tam/7W6sB4jlayPEvZZ7Xc6Sa/PiUhOCmH3j74GcxiDfXe7l8+/SDwD88ER105blQ8HZyWnfLdkXA14VgFElUgkGF1IClMn0WIJfnZMRT7VC/d21M0gGAt7XF5BLqXthCLeeSJu8nw/dE59zwXft0TTls8WRHoEN9nS3ljsoXzoberjacpWYYnkKtMrXsMrXfOCh9/+A9Ed2RkcpQVTw+jg4gtZ7o/7ErVnj4RaNhSCRcWlKMkcQs0jmxCNbsyO7Y3JzvXEtAfXFs1AihAy5HRHgU5KAW8udN3bJJ27PDxpuqe3p+749BPSk7Tnzf/+D4j8/iA2H9sYIjQAAAABJRU5ErkJggg==" alt=""></div>
+  </div>
+
+  <div class="tray" id="tray" aria-label="Chocobars collected"></div>
+  <div class="reward" id="reward"></div>
+
+  <div class="anagram" id="anagram">
+    <div class="slots" id="slots"></div>
+    <div class="pool" id="pool"></div>
+  </div>
+
+  <button type="button" class="btn big-btn freed-btn" id="freedBtn">I freed Kai!</button>
+
+  <div class="overlay" id="title">
+    <h1 class="big-title"><span>Yo Kai</span><span>Catch</span></h1>
+    <button type="button" class="btn big-btn" id="titleBtn">Find Kai!</button>
+  </div>
+
+  <div class="overlay" id="team">
+    <h1 class="big-title sm">Pick your team</h1>
+    <div class="team-list" id="teamList"></div>
+  </div>
+
+  <div class="overlay" id="congrats">
+    <div class="confetti" id="confetti"></div>
+    <h1 class="big-title sm">Congratulations!</h1>
+    <p class="ov-text" id="congratsTeam"></p>
+    <div class="final-word pop-in" id="finalWord"></div>
+    <p class="ov-text">Show this screen to Kai<br>to claim your prize!</p>
+  </div>
+
+  <canvas class="static" id="static" width="200" height="150"></canvas>
+  <div class="scanlines"></div>
+
+  <div class="tools" id="tools">
+    <button type="button" id="restart" title="Clear progress and go back to the static screen">Restart</button>
+  </div>
+
+  <div class="dialog" id="dialog">
+    <div class="nameplate empty" id="name"></div>
+    <p class="text" id="text" aria-live="polite"></p>
+    <div class="answer" id="answer">
+      <input id="guess" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Your answer">
+      <button type="button" class="btn" id="try">Try</button>
+    </div>
+    <p class="feedback" id="feedback" aria-live="assertive"></p>
+    <div class="next" id="next"></div>
+  </div>
+
+  <div class="flash" id="flash"></div>
+</div>
+
+<script>
+/* ======================= SETTINGS YOU MAY CHANGE =======================
+   Update WORDLE_ANSWER on the day of the hunt. */
+const WORDLE_ANSWER = "filler";
+const FINAL_WORDS = ["I", "LOVE", "JSA"];   // the anagram answer, as words
+
+const TEAMS = {
+  komasan: { name: "Team Komasan", color: "var(--team-komasan)", order: [1, 2, 3] },
+  whisper: { name: "Team Whisper", color: "var(--team-whisper)", order: [2, 3, 1] },
+  keita:   { name: "Team Keita",   color: "var(--team-keita)",   order: [3, 1, 2] }
+};
+
+/* ============================ THE SCRIPT ===============================
+   Line:    { name, text, show, fx }   show true/false = Jibanyan in/out,
+                                       fx "shake" / "flash" / "word"
+   Puzzle:  { puzzle: "id", prompt, accept, letters, wrong }
+            accept: "any", a list of answers, or { min, max } for a number
+   Puzzle numbers (#1, #2…) are filled in automatically for each team.
+   Chocobar letters: O J | E S | A V | L I  (8 total, all teams get all 8)
+======================================================================== */
+const J = "Jibanyan", G = "Triple G";
+
+const PART1 = [
+  { name: "???", text: "Nyahaha! Looking for someone?", fx: "flash" },
+  { name: J, text: "That’s right! I’ve got Kai, and I’m not handing him back for free!", show: true, fx: "shake" },
+  { name: J, text: "I’ve hidden clues all over campus. Locks, codes, riddles, the works." },
+  { name: J, text: "Crack every single one… and maybe, MAYBE, I’ll let Kai go." },
+  { name: J, text: "Oh, and bring chocobars. Lots of chocobars." },
+  { title: true },
+  { team: true },
+  { name: J, text: "Let’s start with an easy one. Nyahahahaha!", fx: "shake" },
+  { puzzle: "member", prompt: "Who is your favorite EBoard member in JSA?", accept: "any", letters: ["O"],
+    wrong: ["You have to pick SOMEBODY, nyan!"] },
+  { name: J, text: "Ugh, really?! That’s the worst one. Whatever.", fx: "shake" },
+  { name: J, text: "Fine, here’s your first real clue. I left it right here in this room, one for everybody!" },
+  { name: J, text: "It’s a word search! Somewhere in that jumble of letters is a word. Find it and tell me what it is.", fx: "shake" },
+  { puzzle: "tempura", prompt: "What word is hiding in the word search?", accept: ["tempura"], letters: ["J"],
+    wrong: ["Nyope! Look closer.", "Wrong, nyan! Diagonals count too, you know.", "Hehe. Not even close."] }
+];
+
+// Said at the start of a team's 1st, 2nd and 3rd location, whichever location it is
+const OPENERS = [
+  [ { name: J, text: "Ok, ok, you guys are not bad." } ],
+  [ { name: J, text: "Wow! You even solved that one!", fx: "shake" },
+    { name: J, text: "Gotta go faster though. Kai won’t be around much longer…" } ],
+  [ { name: J, text: "Nyah, still going? Fine." } ]
+];
+
+const LOCATIONS = {
+  // Location 1: Centennial / Shillman
+  1: [
+    { name: J, text: "Find the flagpole by Centennial, and try figuring out the next one, nyan!" },
+    { name: J, text: "Not sure what to do there? Go ask my buddy by Shillman. He’s the cat, not the human next to him. That guy’s useless.", fx: "shake" },
+    { puzzle: "sukiyaki", prompt: "Put the flagpole letters in order. What do they spell?", accept: ["sukiyaki"], letters: ["E", "S"],
+      wrong: ["Nyope! Did you check with my buddy at Shillman?", "Wrong order, nyan! Look at those symbols again.", "Hehe. Not even close."] }
+  ],
+  // Location 2: Bookstore / Koi Pond
+  2: [
+    { name: J, text: "Head to the bookstore. Somebody’s been doodling all over the place… You’ll know what to do, nyan." },
+    { puzzle: "koipond", prompt: "Somebody’s been drawing at the bookstore. Where is it sending you?", accept: ["koipond", "thekoipond"], letters: ["A"],
+      wrong: ["Nyope! Look again.", "Wrong, nyan! Haven’t you seen something like that before?", "Hehe. Keep looking."] },
+    { name: J, text: "The koi pond! Best napping spot on campus, nyan." },
+    { name: J, text: "Go take a look at the bridge there. Hope you’re good at counting!" },
+    { puzzle: "rocks", prompt: "How many rocks are on the left side of the bridge?", accept: { min: 77, max: 83 }, letters: ["V"],
+      wrong: ["Nyope! Count again.", "Wrong, nyan! The LEFT side of the bridge.", "Hehe. Did you lose count?"] },
+    { name: J, text: "You actually counted all of them? Nerds, nyan." }
+  ],
+  // Location 3: ISEC bridge / Bunny statue
+  3: [
+    { name: J, text: "Head over to the bridge to ISEC and do what it says. Hope you’re good with words, nyan!" },
+    { puzzle: "wordle", prompt: "What answer did the bridge give you?", accept: [WORDLE_ANSWER], letters: ["L"],
+      wrong: ["Nyope! Try again.", "Wrong, nyan! Did you do what the bridge told you?", "Hehe. Not even close."] },
+    { name: J, text: "Wow, you’re really hopping through these…" },
+    { name: J, text: "Speaking of hopping, some-bunny left you a message, nyan!" },
+    { name: J, text: "Find the bunny statue and check under the rock on its right foot. Hop to it!", fx: "shake" },
+    { puzzle: "whisper", prompt: "What’s written on the rock?", accept: ["sushi"], letters: ["I"],
+      wrong: ["Nyope! The bunny’s right foot, not yours.", "Wrong, nyan! Look under the rock.", "Hehe. Not even close."] }
+  ]
+};
+
+const FINALE = [
+  { name: J, text: "Hmph… you actually did all of it.", fx: "shake" },
+  { name: J, text: "Fine! Come to the clock tower by West Village. Kai’s there… but you’re not getting him back that easy, nyan!" },
+  { name: "", text: "Head to the clock tower by West Village.\nTap once you get there." },
+  { name: "???", text: "Hold it right there!", fx: "flash", ggg: true },
+  { name: J, text: "Nyah?! Not YOU!", fx: "shake" },
+  { name: G, text: "That’s right, it’s me, Triple G! I’ve been after this chocobar thief for weeks." },
+  { name: G, text: "Those chocobars you found? The letters on the wrappers spell out the one thing Jibanyan can’t stand." },
+  { anagram: true, text: "Drag the chocobars into the boxes and spell it out!" },
+  { name: G, text: "That’s it! Now everybody, scream it at Jibanyan as loud as you can!", fx: "word" },
+  { name: J, text: "NYAAAAAAAAAH!!", fx: "flash" },
+  { name: J, text: "Too much… club spirit… I can’t take it…", fx: "shake" },
+  { name: J, text: "You haven’t seen the last of me, nyan!", show: false },
+  { name: "", text: "Jibanyan ran off! Kai is free.\nGo talk to him." },
+  { freed: true, ggg: false, text: "Once you’ve talked to Kai, tap the button!" },
+  { congrats: true }
+];
+
+function buildScript(team) {
+  const beats = [...PART1];
+  if (team) {
+    TEAMS[team].order.forEach((n, i) => beats.push(...OPENERS[i], ...LOCATIONS[n]));
+    beats.push(...FINALE);
+  }
+  let num = 0;
+  return beats.map(b => b.puzzle ? { ...b, num: ++num } : b);
+}
+
+/* ============================== ENGINE ================================= */
+const TYPE_SPEED = 32;
+const SAVE_KEY = "yokai-catch-progress";
+const FINAL = FINAL_WORDS.join("");
+
+const $ = id => document.getElementById(id);
+const screen = $("screen"), nameEl = $("name"), textEl = $("text"), nextEl = $("next");
+const actor = $("actor"), flash = $("flash"), answer = $("answer"), guess = $("guess");
+const feedback = $("feedback"), tray = $("tray"), reward = $("reward");
+const slotsEl = $("slots"), poolEl = $("pool");
+
+for (let i = 0; i < 28; i++) {
+  const s = document.createElement("i");
+  s.style.left = Math.random() * 100 + "%"; s.style.top = Math.random() * 100 + "%";
+  s.style.animationDelay = (Math.random() * 3) + "s";
+  $("stars").appendChild(s);
+}
+
+/* ---------- Sound ---------- */
+let audio, hiss = null;
+function ctx() {
+  audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+  if (audio.state === "suspended") audio.resume();
+  return audio;
+}
+function tone(freq, start, dur, vol) {
+  const a = ctx(), o = a.createOscillator(), g = a.createGain();
+  o.type = "square"; o.frequency.value = freq; g.gain.value = vol;
+  o.connect(g); g.connect(a.destination);
+  o.start(a.currentTime + start); o.stop(a.currentTime + start + dur);
+}
+function blip(freq) { try { tone(freq || 660 + Math.random() * 80, 0, 0.03, 0.025); } catch (e) {} }
+function jingle() { try { [784, 988, 1175, 1568].forEach((f, i) => tone(f, i * 0.09, 0.08, 0.04)); } catch (e) {} }
+function fanfare() { try { [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, i * 0.12, 0.11, 0.045)); } catch (e) {} }
+function startHiss() {
+  try {
+    const a = ctx(), len = a.sampleRate * 2, buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = a.createBufferSource(); src.buffer = buf; src.loop = true;
+    const f = a.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 3200; f.Q.value = 0.4;
+    const g = a.createGain(); g.gain.value = 0.18;
+    src.connect(f); f.connect(g); g.connect(a.destination); src.start();
+    hiss = src;
+  } catch (e) { hiss = "failed"; }
+}
+function stopHiss() { if (hiss && hiss !== "failed") { try { hiss.stop(); } catch (e) {} } hiss = null; }
+
+/* ---------- Progress ---------- */
+const fresh = () => ({ pos: 0, team: null, letters: [], solved: [] });
+let state = fresh();
+let SCRIPT = buildScript(null);
+function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) {} }
+function load() {
+  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && Array.isArray(s.letters) && Array.isArray(s.solved)) return s; } catch (e) {}
+  return null;
+}
+
+function barHTML(letter, opts) {
+  opts = opts || {};
+  const id = opts.id != null ? ` data-id="${opts.id}"` : "";
+  return `<div class="bar"${id} style="animation-delay:${opts.delay || 0}s"><div class="wrap">${letter}</div></div>`;
+}
+function wordHTML() {
+  return FINAL_WORDS.map(w => [...w].map((l, i) => barHTML(l, { delay: i * .08 })).join("")).join('<span class="word-gap"></span>');
+}
+function renderTray() {
+  const t = state.team && TEAMS[state.team];
+  tray.innerHTML = (t ? `<span class="chip" style="background:${t.color}">${t.name}</span>` : "") +
+    state.letters.map(l => barHTML(l)).join("");
+}
+
+/* ---------- Typing ---------- */
+let phase = "idle", typing = false, timer = null, full = "", afterType = null;
+function typeText(name, text, plate, then) {
+  clearInterval(timer);
+  full = text; textEl.textContent = "";
+  nameEl.textContent = name || "";
+  nameEl.className = "nameplate" + (name ? "" : " empty") + (plate ? " " + plate : "");
+  nextEl.classList.remove("on");
+  afterType = then; typing = true;
+  let i = 0;
+  timer = setInterval(() => {
+    i++; textEl.textContent = full.slice(0, i);
+    if (i % 2 === 0 && full[i - 1] !== " ") blip();
+    if (i >= full.length) finishTyping();
+  }, TYPE_SPEED);
+}
+function finishTyping() {
+  clearInterval(timer); typing = false; textEl.textContent = full;
+  const f = afterType; afterType = null; if (f) f();
+}
+function lineDone() { phase = "line"; if (SCRIPT[state.pos + 1]) nextEl.classList.add("on"); }
+function shake() { actor.classList.remove("shake"); void actor.offsetWidth; actor.classList.add("shake"); }
+function doFlash() { flash.classList.remove("go"); void flash.offsetWidth; flash.classList.add("go"); }
+
+/* ---------- Beats ---------- */
+function clearModes() {
+  screen.classList.remove("titling", "teaming", "anagramming", "freeing", "congrats");
+  answer.classList.remove("on"); feedback.textContent = ""; reward.classList.remove("on");
+}
+function syncGGG(pos) {
+  // Triple G stays on screen from his entrance until the "I freed Kai" step
+  let v = false;
+  for (let i = 0; i <= pos && i < SCRIPT.length; i++) if (SCRIPT[i].ggg !== undefined) v = SCRIPT[i].ggg;
+  $("actor2").classList.toggle("hidden", !v);
+  screen.classList.toggle("duo", v);
+}
+function show(pos) {
+  state.pos = pos; save(); clearModes(); syncGGG(pos);
+  const beat = SCRIPT[pos];
+  if (!beat) { phase = "done"; return; }
+
+  if (beat.title) {
+    actor.classList.remove("hidden");
+    screen.classList.add("titling"); phase = "title"; jingle();
+    setTimeout(() => $("titleBtn").focus({ preventScroll: true }), 700);
+    return;
+  }
+  if (beat.team) {
+    if (state.team) { show(pos + 1); return; }
+    screen.classList.add("teaming"); phase = "team";
+    return;
+  }
+  if (beat.puzzle) {
+    if (state.solved.includes(beat.puzzle)) { show(pos + 1); return; }
+    actor.classList.remove("hidden");
+    phase = "typing";
+    typeText("Puzzle #" + beat.num, beat.prompt, "puzzle", () => {
+      phase = "input"; guess.value = ""; answer.classList.add("on");
+      setTimeout(() => guess.focus({ preventScroll: true }), 50);
+    });
+    return;
+  }
+  if (beat.anagram) {
+    if (state.solved.includes("anagram")) { show(pos + 1); return; }
+    screen.classList.add("anagramming");
+    setupAnagram();
+    phase = "typing";
+    typeText(G, beat.text, "ggg", () => { phase = "anagram"; });
+    return;
+  }
+  if (beat.freed) {
+    actor.classList.add("hidden");
+    screen.classList.add("freeing");
+    phase = "typing";
+    typeText("", beat.text, "", () => { phase = "freed"; });
+    return;
+  }
+  if (beat.congrats) {
+    const t = state.team && TEAMS[state.team];
+    $("congratsTeam").textContent = (t ? t.name : "You") + " freed Kai!";
+    $("finalWord").innerHTML = wordHTML();
+    makeConfetti();
+    screen.classList.add("congrats"); phase = "done"; fanfare();
+    return;
+  }
+
+  // ordinary line
+  if (beat.show === true) actor.classList.remove("hidden");
+  if (beat.show === false) actor.classList.add("hidden");
+  if (beat.fx === "shake") shake();
+  if (beat.fx === "flash") { doFlash(); shake(); }
+  if (beat.fx === "word") { reward.innerHTML = `<div class="final-word">${wordHTML()}</div>`; reward.classList.add("on"); }
+  phase = "typing";
+  typeText(beat.name, beat.text, beat.name === G ? "ggg" : "", lineDone);
+}
+
+/* ---------- Puzzles ---------- */
+const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+function isCorrect(beat, raw) {
+  const g = norm(raw);
+  if (beat.accept === "any") return g.length > 0;
+  if (Array.isArray(beat.accept)) return beat.accept.map(norm).includes(g);
+  if (beat.accept && typeof beat.accept.min === "number") {
+    const n = parseInt(raw.replace(/[^0-9]/g, ""), 10);
+    return !isNaN(n) && n >= beat.accept.min && n <= beat.accept.max;
+  }
+  return false;
+}
+function submit() {
+  if (phase !== "input") return;
+  const beat = SCRIPT[state.pos];
+  if (!isCorrect(beat, guess.value)) {
+    const w = beat.wrong || ["Nyope!"];
+    feedback.textContent = w[Math.floor(Math.random() * w.length)];
+    guess.classList.remove("bad"); void guess.offsetWidth; guess.classList.add("bad");
+    shake(); blip(180);
+    return;
+  }
+  guess.blur();
+  answer.classList.remove("on"); feedback.textContent = "";
+  state.solved.push(beat.puzzle);
+  state.letters.push(...beat.letters);
+  save(); renderTray();
+  reward.innerHTML = beat.letters.map((l, i) => barHTML(l, { delay: i * .15 })).join("");
+  reward.classList.add("on");
+  jingle();
+  const n = beat.letters.length;
+  const what = n === 1 ? `a chocobar! There’s a letter ${beat.letters[0]} on the wrapper.` : `${n} chocobars! The wrappers say ${beat.letters.join(", ")}.`;
+  phase = "typing";
+  typeText("", `You found ${what}`, "", lineDone);
+}
+
+/* ---------- Team select ---------- */
+$("teamList").innerHTML = Object.entries(TEAMS).map(([k, t]) =>
+  `<button type="button" class="btn big-btn" data-team="${k}" style="background:${t.color}">${t.name}</button>`).join("");
+$("teamList").addEventListener("click", e => {
+  const b = e.target.closest("[data-team]"); if (!b || phase !== "team") return;
+  e.stopPropagation();
+  state.team = b.dataset.team;
+  SCRIPT = buildScript(state.team);
+  renderTray(); jingle();
+  show(state.pos + 1);
+});
+
+/* ---------- Anagram (drag or tap) ---------- */
+let placed = [];
+function setupAnagram() { placed = Array(FINAL.length).fill(null); slotsEl.classList.remove("win"); renderAnagram(); }
+function renderAnagram() {
+  let k = 0, html = "";
+  FINAL_WORDS.forEach((w, wi) => {
+    if (wi) html += '<span class="word-gap"></span>';
+    for (let i = 0; i < w.length; i++, k++) {
+      const id = placed[k];
+      html += `<div class="slot" data-slot="${k}">${id != null ? barHTML(state.letters[id], { id }) : ""}</div>`;
+    }
+  });
+  slotsEl.innerHTML = html;
+  poolEl.innerHTML = state.letters.map((l, i) => placed.includes(i) ? "" : barHTML(l, { id: i })).join("");
+}
+function afterMove() {
+  renderAnagram(); blip(520);
+  if (placed.includes(null)) { feedback.textContent = ""; return; }
+  const word = placed.map(i => state.letters[i]).join("");
+  if (word === FINAL) {
+    phase = "won"; slotsEl.classList.add("win");
+    state.solved.push("anagram"); save(); fanfare(); feedback.textContent = "";
+    setTimeout(() => { phase = "typing"; typeText(G, "Yes! That’s the one!", "ggg", lineDone); }, 500);
+  } else {
+    feedback.textContent = "Hmm, that’s not it. Try moving some around!";
+  }
+}
+function tapPiece(id) {
+  const s = placed.indexOf(id);
+  if (s >= 0) placed[s] = null;
+  else { const empty = placed.indexOf(null); if (empty < 0) return; placed[empty] = id; }
+  afterMove();
+}
+function dropPiece(id, slot) {
+  const old = placed.indexOf(id);
+  if (slot == null) { if (old >= 0) placed[old] = null; }
+  else if (slot !== old) {
+    const other = placed[slot];
+    placed[slot] = id;
+    if (old >= 0) placed[old] = other;
+  }
+  afterMove();
+}
+let drag = null;
+$("anagram").addEventListener("pointerdown", e => {
+  if (phase !== "anagram") return;
+  const bar = e.target.closest(".bar[data-id]"); if (!bar) return;
+  e.preventDefault();
+  drag = { id: +bar.dataset.id, x: e.clientX, y: e.clientY, el: bar, ghost: null };
+});
+document.addEventListener("pointermove", e => {
+  if (!drag) return;
+  if (!drag.ghost && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6) {
+    const g = drag.el.cloneNode(true);
+    g.classList.add("ghost"); g.style.fontSize = getComputedStyle(drag.el).fontSize; g.style.animation = "none";
+    document.body.appendChild(g); drag.ghost = g; drag.el.style.opacity = ".3";
+  }
+  if (drag.ghost) { drag.ghost.style.left = e.clientX + "px"; drag.ghost.style.top = e.clientY + "px"; }
+});
+document.addEventListener("pointerup", e => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (!d.ghost) { tapPiece(d.id); return; }
+  d.ghost.remove();
+  const under = document.elementFromPoint(e.clientX, e.clientY);
+  const slot = under && under.closest(".slot");
+  dropPiece(d.id, slot ? +slot.dataset.slot : null);
+});
+document.addEventListener("pointercancel", () => { if (drag) { if (drag.ghost) drag.ghost.remove(); drag = null; renderAnagram(); } });
+
+/* ---------- Confetti ---------- */
+function makeConfetti() {
+  const colors = ["#f5b841", "#8fb8ff", "#e07a8a", "#8ee6a8", "#fff8e6"];
+  let h = "";
+  for (let i = 0; i < 40; i++) {
+    h += `<i style="left:${Math.random() * 100}%;background:${colors[i % colors.length]};animation-duration:${2.5 + Math.random() * 2.5}s;animation-delay:${-Math.random() * 4}s"></i>`;
+  }
+  $("confetti").innerHTML = h;
+}
+
+/* ---------- Flow control ---------- */
+function advance() {
+  if (screen.classList.contains("standby")) {
+    if (!hiss) { startHiss(); if (hiss !== "failed") return; }
+    stopHiss(); screen.classList.remove("standby");
+    show(state.pos); return;
+  }
+  if (typing) { finishTyping(); return; }
+  if (phase === "line") show(state.pos + 1);
+}
+function startGame() { if (phase === "title") { blip(880); show(state.pos + 1); } }
+
+let armTimer = null;
+function restart(ask) {
+  const btn = $("restart");
+  if (ask && (state.letters.length || state.team) && !btn.dataset.armed) {
+    btn.dataset.armed = "1"; btn.textContent = "Press again to clear";
+    clearTimeout(armTimer);
+    armTimer = setTimeout(() => { delete btn.dataset.armed; btn.textContent = "Restart"; }, 3000);
+    return;
+  }
+  clearTimeout(armTimer); delete btn.dataset.armed; btn.textContent = "Restart";
+  clearInterval(timer); typing = false; stopHiss();
+  state = fresh(); SCRIPT = buildScript(null); save(); renderTray();
+  clearModes();
+  actor.classList.add("hidden"); $("actor2").classList.add("hidden"); screen.classList.remove("duo");
+  textEl.textContent = ""; nameEl.className = "nameplate empty"; nextEl.classList.remove("on");
+  phase = "idle";
+  screen.classList.add("standby");
+}
+
+screen.addEventListener("click", e => {
+  if (e.target.closest("#tools, #answer, #title, #team, #anagram, #freedBtn, #congrats")) return;
+  advance();
+});
+document.addEventListener("keydown", e => {
+  if (e.target === guess) { if (e.key === "Enter") { e.preventDefault(); submit(); } return; }
+  const go = [" ", "Enter", "ArrowRight", "ArrowDown", "PageDown"].includes(e.key);
+  if (phase === "title" && go) { e.preventDefault(); startGame(); return; }
+  if (e.target.tagName === "BUTTON" && (e.key === " " || e.key === "Enter")) return;
+  if (go) { e.preventDefault(); advance(); }
+  if (e.key === "r" || e.key === "R") restart(true);
+});
+$("titleBtn").addEventListener("click", e => { e.stopPropagation(); startGame(); });
+$("try").addEventListener("click", e => { e.stopPropagation(); submit(); });
+$("freedBtn").addEventListener("click", e => { e.stopPropagation(); if (phase === "freed" || typing) { if (typing) finishTyping(); show(state.pos + 1); } });
+$("restart").addEventListener("click", e => { e.stopPropagation(); restart(true); });
+
+/* ---------- TV static ---------- */
+const sc = $("static"), sctx = sc.getContext("2d"), frame = sctx.createImageData(sc.width, sc.height);
+let roll = 0, lastFrame = 0;
+function drawStatic(t) {
+  requestAnimationFrame(drawStatic);
+  if (!screen.classList.contains("standby") || t - lastFrame < 33) return;
+  lastFrame = t;
+  const d = frame.data, w = sc.width, h = sc.height;
+  roll = (roll + 3) % h;
+  for (let y = 0; y < h; y++) {
+    const band = Math.abs(y - roll) < 10 ? 40 : 0;
+    for (let x = 0; x < w; x++) {
+      const v = Math.min(255, ((Math.random() * 215) | 0) + band), i = (y * w + x) * 4;
+      d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255;
+    }
+  }
+  sctx.putImageData(frame, 0, 0);
+}
+requestAnimationFrame(drawStatic);
+
+/* ---------- Screen size (ignores the phone keyboard) ---------- */
+let fitWidth = 0, keyboardUntil = 0;
+guess.addEventListener("blur", () => { keyboardUntil = Date.now() + 800; setTimeout(fit, 850); });
+function fit() {
+  const w = document.documentElement.clientWidth;
+  if (w === fitWidth && (document.activeElement === guess || Date.now() < keyboardUntil)) return;
+  fitWidth = w;
+  const cs = getComputedStyle(document.documentElement);
+  const h = window.innerHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  let sw, sh;
+  if (w >= h) { sw = Math.min(w, h * 4 / 3); sh = sw * 3 / 4; }
+  else { sw = Math.min(w, h * 3 / 4); sh = sw * 4 / 3; }
+  screen.style.width = Math.floor(sw) + "px";
+  screen.style.height = Math.floor(sh) + "px";
+  screen.style.aspectRatio = "auto";
+}
+fit();
+window.addEventListener("resize", fit);
+window.addEventListener("orientationchange", () => { fitWidth = 0; setTimeout(fit, 300); });
+
+/* ---------- Start ---------- */
+const saved = load();
+if (saved && (saved.pos > 0 || saved.letters.length || saved.team)) {
+  state = saved;
+  if (state.team && !TEAMS[state.team]) state.team = null;
+  SCRIPT = buildScript(state.team);
+  renderTray();
+  screen.classList.remove("standby");
+  actor.classList.remove("hidden");
+  show(Math.min(state.pos, SCRIPT.length - 1));
+} else {
+  restart(false);
+}
+</script>
+</body>
+</html>
