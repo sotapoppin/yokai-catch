@@ -417,6 +417,7 @@ const SAVE_KEY = "yokai-catch-progress";
 const FINAL = FINAL_WORDS.join("");
 
 const $ = id => document.getElementById(id);
+const d0 = document;
 const screen = $("screen"), nameEl = $("name"), textEl = $("text"), nextEl = $("next");
 const actor = $("actor"), flash = $("flash"), answer = $("answer"), guess = $("guess");
 const feedback = $("feedback"), tray = $("tray"), reward = $("reward");
@@ -748,7 +749,18 @@ document.addEventListener("keydown", e => {
   if (e.target.tagName === "BUTTON" && (e.key === " " || e.key === "Enter")) return;
   if (go) { e.preventDefault(); advance(); }
   if (e.key === "r" || e.key === "R") restart(true);
+  if (e.key === "f" || e.key === "F") toggleFullscreen();
 });
+// True full screen (hides all browser bars, like Google Slides does). Press F.
+function toggleFullscreen() {
+  const d = document, el = d.documentElement;
+  const on = d.fullscreenElement || d.webkitFullscreenElement;
+  try {
+    if (on) (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+    else (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+  } catch (err) {}
+}
+["fullscreenchange", "webkitfullscreenchange"].forEach(ev => d0.addEventListener(ev, () => { fitWidth = 0; setTimeout(fit, 100); }));
 $("titleBtn").addEventListener("click", e => { e.stopPropagation(); startGame(); });
 $("try").addEventListener("click", e => { e.stopPropagation(); submit(); });
 $("freedBtn").addEventListener("click", e => { e.stopPropagation(); if (phase === "freed" || typing) { if (typing) finishTyping(); show(state.pos + 1); } });
